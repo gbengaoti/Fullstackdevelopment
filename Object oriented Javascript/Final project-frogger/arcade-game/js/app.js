@@ -4,20 +4,21 @@ var tileHeight = 82;
 var tileWidth = 101;
 var upMovement = -1 * tileHeight;
 var leftMovement = -1 * tileWidth;
-var laneSpeed = [225, 200, 175, 150, 125, 100];
+var laneSpeed = [70, 100, 175, 150, 125, 100];
 var canvasWidth = 505;
 var canvasHeight = 606;
 var offset = 20;
-var collisionOffsetX = 80;
-var collisionOffsetY = 80;
+var collisionOffsetX = 70;
+var collisionOffsetY = 20;
 var playerOriginX = 202;
 var playerOriginY = 405;
 var playerLives = 3;
 var resetEnemyX = -10;
+var playerInWaterY = -5;
 
 // Todo
 // group constants
-// declare winner
+// timed game
 
 // Enemies our player must avoid
 var Enemy = function(lane) {
@@ -103,9 +104,10 @@ Player.prototype.handleInput = function(input_code){
             break;
         case 'up':
             this.y += upMovement;
-            if (this.y < 0){
-                this.y += tileHeight;
-            };
+            if (this.y == playerInWaterY){
+                alert("Game, won!");
+                player.reset();
+            }
             break;
         case 'right':
             this.x -= leftMovement;

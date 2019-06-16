@@ -1,0 +1,86 @@
+body {
+    font-family: sans-serif;
+    background-color: #0d2c40;
+    background-image: url(images/bgimage2.jpg);
+}
+
+h1 {
+    color: #000;
+}
+
+h2,
+h3,
+h4 {
+    color: #ffffff;
+}
+
+h1,
+h2 {
+    font-family: 'georgia', serif;
+    text-align: center;
+    margin: 0;
+}
+
+h1 {
+    border-bottom: 2px solid #eee;
+    height: auto;
+    width: 100%;
+    background: #D3D3D3;
+    border-radius: 5px 5px 0 0;
+}
+
+h2 {
+    font-size: 1.2em;
+}
+
+
+p,
+dd,
+dt {
+    color: #ffffff;
+}
+
+a {
+    text-decoration: none;
+    color: #ffffcc;
+    font-size: .75em;
+}
+
+.pane {
+    position: relative;
+    width: 30%;
+    border: 2px solid;
+    margin:0px auto;
+    padding: 5px;
+    border-color: #999999;
+    background-color: #0d2c40
+}
+
+.pane text{
+    padding: 10px;
+}
+
+.header {
+    left: 50%;
+    text-align: center;
+}
+
+.name {
+    width: 50%;
+    display: inline-block;
+    float: left;
+}
+
+.description {}
+
+.price {
+    text-align: right;
+    width: 50%;
+    float: right;
+}
+
+.editdeletepane {}
+
+.flash {
+    background: #cee5f5;
+}

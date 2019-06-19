@@ -54,6 +54,7 @@ def addArticle(user_id):
         newArticle = Article(title = request.form['title'], article_body =request.form['body'], user_id = user_id)
         session.add(newArticle)
         session.commit()
+        flash("New Post Added Successfully!")
         return redirect(url_for('userArticles', user_id = user_id))
     else:
         return render_template('add_article.html', user = user)
@@ -70,6 +71,7 @@ def editArticle(user_id, article_id):
             toEditArticle.article_body = request.form['body']
         session.add(toEditArticle)
         session.commit()
+        flash("Post Successfully Updated !")
         return redirect(url_for('viewUserArticle', user_id = user_id, article_id = article_id))
     else:
         return render_template('edit_article.html', user = user, article = toEditArticle)
@@ -82,10 +84,12 @@ def deleteArticle(user_id, article_id):
     if request.method == 'POST':
         session.delete(toDeleteArticle)
         session.commit()
+        flash("Post Successfully Deleted")
         return redirect(url_for('userArticles', user_id = user_id))
     else:
         return render_template('delete_article.html', user = user, article = toDeleteArticle)
 
 if __name__ == '__main__':
+    app.secret_key = 'super_secret_blog_keys'
     app.debug = False
     app.run(host = '0.0.0.0', port = 5000)

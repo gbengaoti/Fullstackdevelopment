@@ -20,9 +20,26 @@ def close_session(response):
     session.remove()
     return(response)
 
-user = {"name":"Gbenga"}
+@app.route('/users/JSON')
+def usersJSON():
+    # get all users
+    users = session.query(User).all()
+    return jsonify(Users=[user.serialize for user in users])
 
-articles = [{"title":"Summer in Lodz", "article_body":"Summer is great in Lodz, ancient city though"}, {"title":"Summer in France", "article_body":"Summer is great in France, modern city though"}]
+@app.route('/user/<int:user_id>/article/<int:article_id>/comments/JSON')
+def commentsJSON(user_id, article_id):
+    allComments = session.query(Comments).filter_by(article_id = article_id).all()
+    return jsonify(Comments=[c.serialize for c in allComments])
+
+@app.route('/user/<int:user_id>/articles/JSON')
+def articlesJSON(user_id):
+    articles = session.query(Article).filter_by(user_id = user_id).all()
+    return jsonify(Articles= [article.serialize for article in articles])    
+
+@app.route('/user/<int:user_id>/article/<int:article_id>/JSON')
+def articleJSON(user_id, article_id):
+    article = session.query(Article).filter_by(id = article_id, user_id = user_id).one()
+    return jsonify(Article= article.serialize)    
 
 
 @app.route('/users/<int:user_id>')
@@ -33,7 +50,7 @@ def userArticles(user_id):
     articles = session.query(Article).filter_by(user_id = user_id).all()
     return render_template('user_articles.html', user = user, articles = articles)
 
-@app.route('/users/<int:user_id>/<int:article_id>/view', methods=['GET','POST'])
+@app.route('/user/<int:user_id>/article/<int:article_id>/view', methods=['GET','POST'])
 def viewUserArticle(user_id, article_id):
     # search article by user_id and article_id
     user = session.query(User).filter_by(id = user_id).one()

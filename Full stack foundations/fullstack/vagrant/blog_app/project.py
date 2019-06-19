@@ -27,28 +27,64 @@ articles = [{"title":"Summer in Lodz", "article_body":"Summer is great in Lodz, 
 
 @app.route('/users/<int:user_id>')
 def userArticles(user_id):
-    #return "Page to show all articles for user"
+    # search for user by ID
+    user = session.query(User).filter_by(id = user_id).one()
+    # get all articles with user ID
+    articles = session.query(Article).filter_by(user_id = user_id).all()
     return render_template('user_articles.html', user = user, articles = articles)
 
-@app.route('/users/<int:user_id>/<int:article_id>/view')
+@app.route('/users/<int:user_id>/<int:article_id>/view', methods=['GET','POST'])
 def viewUserArticle(user_id, article_id):
-    #return "Page to show article %d for user %d" % (user_id, article_id)
-    return render_template('view_article.html', user = user, article = articles[0])
+    # search article by user_id and article_id
+    user = session.query(User).filter_by(id = user_id).one()
+    article = session.query(Article).filter_by(id = article_id, user_id = user_id).one()
+    allComments = session.query(Comments).filter_by(article_id = article_id).all()
+    if request.method == 'POST':
+        newComment = Comments(comment_text = request.form['comment'], article_id = article.id )
+        session.add(newComment)
+        session.commit()
+        return redirect(url_for('viewUserArticle', user_id = user.id, article_id = article.id ))
+    else:
+        return render_template('view_article.html', user = user, article = article, comments = allComments)
 
-@app.route('/user/<int:user_id>/article/new')
+@app.route('/user/<int:user_id>/article/new' , methods=['GET','POST'])
 def addArticle(user_id):
-    #return "Page to add new article for user"
-    return render_template('add_article.html', user = user)
+    user = session.query(User).filter_by(id = user_id).one()
+    if request.method == 'POST':
+        newArticle = Article(title = request.form['title'], article_body =request.form['body'], user_id = user_id)
+        session.add(newArticle)
+        session.commit()
+        return redirect(url_for('userArticles', user_id = user_id))
+    else:
+        return render_template('add_article.html', user = user)
 
-@app.route('/user/<int:user_id>/article/<int:article_id>/edit')
+@app.route('/user/<int:user_id>/article/<int:article_id>/edit' , methods=['GET','POST'])
 def editArticle(user_id, article_id):
-    #return "Page to add edit article for user"
-    return render_template('edit_article.html', user = user, article = articles[0])
+    # get article from database
+    user = session.query(User).filter_by(id = user_id).one()
+    toEditArticle = session.query(Article).filter_by(id = article_id, user_id = user_id).one()
+    if request.method == 'POST':
+        if request.form['title']:
+            toEditArticle.title = request.form['title']
+        if request.form['body']:
+            toEditArticle.article_body = request.form['body']
+        session.add(toEditArticle)
+        session.commit()
+        return redirect(url_for('viewUserArticle', user_id = user_id, article_id = article_id))
+    else:
+        return render_template('edit_article.html', user = user, article = toEditArticle)
 
-@app.route('/user/<int:user_id>/article/<int:article_id>/delete')
+@app.route('/user/<int:user_id>/article/<int:article_id>/delete'  , methods=['GET','POST'])
 def deleteArticle(user_id, article_id):
-    #return "Page to add delete article for user"
-    return render_template('delete_article.html', user = user, article = articles[0])
+    # get article
+    user = session.query(User).filter_by(id = user_id).one()
+    toDeleteArticle = session.query(Article).filter_by(id = article_id, user_id = user_id).one()
+    if request.method == 'POST':
+        session.delete(toDeleteArticle)
+        session.commit()
+        return redirect(url_for('userArticles', user_id = user_id))
+    else:
+        return render_template('delete_article.html', user = user, article = toDeleteArticle)
 
 if __name__ == '__main__':
     app.debug = False

@@ -1,15 +1,15 @@
 <html>
 <body>
-<h1>{{user.name}}'s blog </h1>
+<h1>{{user.user_name}}'s blog </h1>
 
-<form action = "#" method = "post">
+<form action = "{{ url_for('editArticle', user_id = user.id, article_id = article.id)}}" method = "post">
 
-	<input type="text" name="title" placeholder="{{article.title}}"><br>
+	<input type="text" name="title" size= "50" value="{{article.title}}"><br>
          
-	<textarea rows = "10" cols = "100" name = "comment", placeholder="{{article.article_body}}"></textarea>
+	<textarea rows = "10" cols = "100" name = "body">{{article.article_body}}</textarea>
 	<br/>
-	<input type = "submit" value = "submit" />
-	<a href='#' >Cancel</a>
+	<input type = "submit" value = "Edit" />
+	<a href="{{ url_for('userArticles', user_id = user.id)}}" >Cancel</a>
 	
 </form>
  

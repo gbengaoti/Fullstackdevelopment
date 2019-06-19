@@ -1,18 +1,18 @@
 <html>
 <body>
-<h1>{{user.name}}'s blog </h1>
+<h1>{{user.user_name}}'s blog </h1>
 
 
 
-<a href = '#'>Add New Post</a>
+<a href = "{{ url_for('addArticle', user_id = user.id)}}">Add New Post</a>
 
 {% for i in articles %}
 		<p>{{i.title}} </p>
 	</span>
 
-	<a href='#' >View</a>
-	<a href='#' >Edit</a>
-	<a href='#' >Delete</a>
+	<a href="{{url_for('viewUserArticle', user_id = user.id, article_id = i.id)}}" >View</a>
+	<a href="{{ url_for('editArticle', user_id = user.id, article_id = i.id)}}" >Edit</a>
+	<a href="{{ url_for('deleteArticle', user_id = user.id, article_id = i.id)}}" >Delete</a>
 	
 
 {% endfor %}

@@ -1,6 +1,11 @@
 <html>
+<head>
+    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='styles.css') }}">
+</head>
 <body>
-<h1>{{user.user_name}}'s blog </h1>
+<div class="header">
+    <h1>{{user.user_name}}'s blog </h1>
+</div>
 
 <div class = 'flash'>
 		      {% with messages = get_flashed_messages() %}
@@ -16,11 +21,12 @@
 
 </div>
 
+<div class="pane">
+
 <a href = "{{ url_for('addArticle', user_id = user.id)}}">Add New Post</a>
 
 {% for i in articles %}
 		<p>{{i.title}} </p>
-	</span>
 
 	<a href="{{url_for('viewUserArticle', user_id = user.id, article_id = i.id)}}" >View</a>
 	<a href="{{ url_for('editArticle', user_id = user.id, article_id = i.id)}}" >Edit</a>
@@ -28,7 +34,8 @@
 	
 
 {% endfor %}
-	
+
+</div>
 
 </body>
 

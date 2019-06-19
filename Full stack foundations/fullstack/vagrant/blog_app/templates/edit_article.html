@@ -1,7 +1,13 @@
 <html>
+<head>
+	<link rel=stylesheet type=text/css href="{{ url_for('static', filename='styles.css') }}">
+</head>
 <body>
+<div class="header">
 <h1>{{user.user_name}}'s blog </h1>
+</div>
 
+<div class="pane">
 <form action = "{{ url_for('editArticle', user_id = user.id, article_id = article.id)}}" method = "post">
 
 	<input type="text" name="title" size= "50" value="{{article.title}}"><br>
@@ -13,7 +19,7 @@
 	
 </form>
  
-
+</div>
 	
 
 </body>

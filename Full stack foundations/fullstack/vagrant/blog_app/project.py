@@ -62,7 +62,7 @@ def viewUserArticle(user_id, article_id):
         session.commit()
         return redirect(url_for('viewUserArticle', user_id = user.id, article_id = article.id ))
     else:
-        return render_template('view_article.html', user = user, article = article, comments = allComments)
+        return render_template('view_article.html', user = user, article = article, comments = allComments, num_comments = len(allComments))
 
 @app.route('/user/<int:user_id>/article/new' , methods=['GET','POST'])
 def addArticle(user_id):

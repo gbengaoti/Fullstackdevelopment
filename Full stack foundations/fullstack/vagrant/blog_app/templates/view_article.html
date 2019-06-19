@@ -1,6 +1,11 @@
 <html>
+<head>
+	<link rel=stylesheet type=text/css href="{{ url_for('static', filename='styles.css') }}">
+</head>
 <body>
+<div class="header">
 <h1>{{user.user_name}}'s blog </h1>
+</div>
 
 <div class = 'flash'>
 		      {% with messages = get_flashed_messages() %}
@@ -16,22 +21,23 @@
 
 </div>
 
+<div class="pane">
 <h2>{{article.title}}</h2>
 
 <p>{{article.article_body}}</p>
 
 
+<div id="comments">
+
+<h3>{{num_comments}} Comments</h3>
+
 {% for c in comments %}
+ 	<div class="date"><p><em>{{c.created_date}}</em></p></div>
+ 	<div class="comment_text"><p>{{c.comment_text}}</p></div>
 	 
-	 <span> 
-	 	<p>{{c.created_date}}</p>
-	 	<p>{{c.comment_text}}</p>
-	 </span> 
-
-
 {% endfor %}
 
-
+</div>
 
 <form action = "{{ url_for('viewUserArticle', user_id = user.id, article_id = article.id)}}" method = "post">
          
@@ -42,7 +48,7 @@
 	
 </form>
  
-
+</div>
 	
 
 </body>

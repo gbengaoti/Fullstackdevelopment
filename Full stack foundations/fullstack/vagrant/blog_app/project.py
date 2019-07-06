@@ -21,7 +21,6 @@ session_factory = sessionmaker(bind=engine)
 session = scoped_session(session_factory)
 
 #validate token
-#check if user is logged in
 
 @app.before_request
 def before_request():
@@ -37,6 +36,15 @@ def usersJSON():
     # get all users
     users = session.query(User).all()
     return jsonify(Users=[user.serialize for user in users])
+
+# Create anti-forgery state token
+@app.route('/login')
+def showLogin():
+    state = ''.join(random.choice(string.ascii_uppercase + string.digits)
+                    for x in xrange(32))
+    login_session['state'] = state
+    print("The current session state is %s" % login_session['state'])
+    return render_template('login.html', STATE=state)
 
 @app.route('/')
 @app.route('/signin')
@@ -58,7 +66,7 @@ def signoutBlog():
 @app.route('/users')
 def users():
     users = session.query(User).all()
-    return render_template('users.html', users = users)  
+    return render_template('users.html', users = users, signed_in=google_auth.is_signed_in())  
 
 @app.route('/user/<int:user_id>/article/<int:article_id>/comments/JSON')
 def commentsJSON(user_id, article_id):
@@ -109,7 +117,7 @@ def addArticle(user_id):
             flash("New Post Added Successfully!")
             return redirect(url_for('userArticles', user_id = user_id))
         else:
-            return render_template('add_article.html', user = user)
+            return render_template('add_article.html', user = user, signed_in=google_auth.is_signed_in())
     else:
         flash("You need to be logged in to add an article")
         return redirect(url_for('userArticles', user_id = user_id))
@@ -130,7 +138,7 @@ def editArticle(user_id, article_id):
             flash("Post Successfully Updated !")
             return redirect(url_for('viewUserArticle', user_id = user_id, article_id = article_id))
         else:
-            return render_template('edit_article.html', user = user, article = toEditArticle)
+            return render_template('edit_article.html', user = user, article = toEditArticle, signed_in=google_auth.is_signed_in())
     else:
         flash("You need to be logged in to edit an article")
         return redirect(url_for('userArticles', user_id = user_id))
@@ -147,7 +155,7 @@ def deleteArticle(user_id, article_id):
             flash("Post Successfully Deleted")
             return redirect(url_for('userArticles', user_id = user_id))
         else:
-            return render_template('delete_article.html', user = user, article = toDeleteArticle)
+            return render_template('delete_article.html', user = user, article = toDeleteArticle, signed_in=google_auth.is_signed_in())
     else:
         flash("You need to be logged in to delete an article")
         return redirect(url_for('userArticles', user_id = user_id))

@@ -32,6 +32,22 @@ body {
     font-weight: normal;
 }
 
+.header a {
+    font-family: 'Pacifico', cursive;
+    display: inline-block;
+    height: inherit;
+    left: 80%;
+    line-height: inherit;
+    margin: 0;
+    padding-left: 50px;
+    position: absolute;
+    top: 0;
+    color: #e5474b;
+    font-size: 1.0em;
+    text-decoration: none;
+    font-weight: normal;
+}
+
 .pane {
     position: relative;
     width: 40%;

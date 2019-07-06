@@ -1,6 +1,8 @@
 <html>
 <head>
-    <link rel=stylesheet type=text/css href="{{ url_for('static', filename='styles.css') }}">
+	<link rel=stylesheet type=text/css href="{{ url_for('static', filename='styles.css') }}">
+	<script src="https://apis.google.com/js/platform.js" async defer></script>
+	
 </head>
 <body>
 <div class="header">
@@ -9,10 +11,9 @@
         <a href="{{ url_for('signoutBlog')}}">Sign out</a>
     {% else %}
         <h1>Blogger's world </h1>
-        <a href="{{ url_for('signinBlog')}}">Sign in</a>
+        <a href="{{ url_for('google_auth.test_api_request')}}">Sign in</a>
     {% endif %}
 </div>
-
 <div class = 'flash'>
 		      {% with messages = get_flashed_messages() %}
       {% if messages %}
@@ -26,22 +27,12 @@
     {% endwith %}
 
 </div>
-
 <div class="pane">
-    <a href = "{{ url_for('addArticle', user_id = user.id)}}">Add New Post</a>
+	<p>In Blogger's world, we present articles from the best bloggers in the world.</p>
 
-{% for i in articles %}
-		<p>{{i.title}} </p>
+	<p> You can sign in, to share your thoughts on their articles </p>
 
-	<a href="{{url_for('viewUserArticle', user_id = user.id, article_id = i.id)}}" >View</a>
-	<a href="{{ url_for('editArticle', user_id = user.id, article_id = i.id)}}" >Edit</a>
-	<a href="{{ url_for('deleteArticle', user_id = user.id, article_id = i.id)}}" >Delete</a>
-	
-
-{% endfor %}
-
+	<p>No pressure, check them out for yourself <a href="{{ url_for('users')}}" >View Bloggers</a></p>
 </div>
-
 </body>
-
 </html>

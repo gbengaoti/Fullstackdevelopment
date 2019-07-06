@@ -4,7 +4,27 @@
 </head>
 <body>
 <div class="header">
-<h1>{{user.user_name}}'s blog </h1>
+    {% if signed_in %}
+        <h1>{{user.user_name}}'s blog </h1>
+        <a href="{{ url_for('signoutBlog')}}">Sign out</a>
+    {% else %}
+        <h1>Blogger's world </h1>
+        <a href="{{ url_for('signinBlog')}}">Sign in</a>
+    {% endif %}
+</div>
+
+<div class = 'flash'>
+		      {% with messages = get_flashed_messages() %}
+      {% if messages %}
+          
+        <ul>
+        {% for message in messages %}
+            <li> <strong> {{ message }} </strong> </li>
+        {% endfor %}
+        </ul>
+        {% endif %}
+    {% endwith %}
+
 </div>
 
 <div class="pane">

@@ -17,13 +17,31 @@
 
 <!-- GOOGLE PLUS SIGN IN-->
 
-<div class="g-signin2" data-onsuccess="onSignIn"></div>
+<div id="signinButton" class="g-signin2" data-onsuccess="signInCallback"></div>
           
   
 
 <div id="result"></div>
 
 <script>
+  function signInCallback(googleUser) {
+    if (googleUser) {
+
+      // Hide the sign-in button now that the user is authorized
+      $('#signinButton').attr('style', 'display: none');
+
+      // Send the one-time-use code to the server, if the server responds, write a 'login successful' message to the web page and then redirect back to the main restaurants page
+      $.ajax({
+        type: 'POST',
+        url: '/gconnect?state={{STATE}}',
+        data: {json_str: googleUser},
+        contentType: 'application/json; charset=utf-8'
+        }); 
+    }else{
+        console.log("Error getting profile");
+      } 
+    }
+
   function onSignIn(googleUser) {
   var profile = googleUser.getBasicProfile();
   console.log('ID: ' + profile.getId()); // Do not send to your backend! Use an ID token instead.

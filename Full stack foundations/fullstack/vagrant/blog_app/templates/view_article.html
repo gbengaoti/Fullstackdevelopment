@@ -9,7 +9,7 @@
         <a href="{{ url_for('signoutBlog')}}">Sign out</a>
     {% else %}
         <h1>Blogger's world </h1>
-        <a href="{{ url_for('signinBlog')}}">Sign in</a>
+        <a href="{{ url_for('signin')}}">Sign in</a>
     {% endif %}
 </div>
 
@@ -55,7 +55,7 @@
 	</form>
 {% else %}
     <span>
-        <a href = "{{ url_for('signinBlog')}}">Sign in to add comment</a>
+        <a href = "{{ url_for('signin')}}">Sign in to add comment</a>
         <a href="{{ url_for('userArticles', user_id = user.id)}}" >Back</a>
     </span>
 	

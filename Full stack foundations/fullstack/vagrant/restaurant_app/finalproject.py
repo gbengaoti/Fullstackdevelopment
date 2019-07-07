@@ -43,6 +43,7 @@ def menuItemJSON(restaurant_id, menu_id):
     menuItem = session.query(MenuItem).filter_by(id=menu_id).one()
     return jsonify(MenuItem=menuItem.serialize)
 
+
 @app.route('/')
 @app.route('/restaurants')
 def showRestaurants():
@@ -150,5 +151,5 @@ def deleteMenuItem(restaurant_id, menu_id):
 
 if __name__ == '__main__':
     app.secret_key = 'super_secret_keys'
-    app.debug = False
+    app.debug = True
     app.run(host = '0.0.0.0', port = 5000)

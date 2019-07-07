@@ -2,17 +2,16 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify, f
 from requests_oauthlib import OAuth2Session
 import google.oauth2.credentials
 import googleapiclient.discovery
-
-app = Flask(__name__)
-import google_auth
-app.register_blueprint(google_auth.app)
 from flask import session as login_session
 import random
 import string
-
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, scoped_session
 from database_setup import User, Base, Article, Comments
+from flask_oauth import OAuth
+import json
+
+app = Flask(__name__)
 
 engine = create_engine('sqlite:///blogarticles.db')
 Base.metadata.bind = engine
@@ -31,42 +30,109 @@ def close_session(response):
     session.remove()
     return(response)
 
+GOOGLE_CLIENT_ID = json.loads(
+    open('client_secrets.json', 'r').read())['web']['client_id']
+
+GOOGLE_CLIENT_SECRET = json.loads(
+    open('client_secrets.json', 'r').read())['web']['client_secret']
+APPLICATION_NAME = "Blog Application"
+
+REDIRECT_URI = '/oauth2callback'  # one of the Redirect URIs from Google APIs console
+
+oauth = OAuth()
+
+google = oauth.remote_app('google',
+base_url='https://www.google.com/accounts/',
+authorize_url='https://accounts.google.com/o/oauth2/auth',
+request_token_url=None,
+request_token_params={'scope':  "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/plus.login https://www.googleapis.com/auth/plus.me",
+'response_type': 'code'},
+access_token_url='https://accounts.google.com/o/oauth2/token',
+access_token_method='POST',
+access_token_params={'grant_type': 'authorization_code'},
+consumer_key=GOOGLE_CLIENT_ID,
+consumer_secret=GOOGLE_CLIENT_SECRET)
+
+
+@app.route('/')
+def index():
+    access_token = login_session.get('access_token')
+    if access_token is None:
+        return redirect(url_for('login'))
+
+    access_token = access_token[0]
+    from urllib2 import Request, urlopen, URLError
+
+    headers = {'Authorization': 'OAuth '+access_token}
+    
+    req = Request('https://www.googleapis.com/oauth2/v1/userinfo',
+    None, headers)
+    try:
+        res = urlopen(req)
+    except URLError, e:
+        if e.code == 401:
+            # Unauthorized - bad token
+            login_session.pop('access_token', None)
+            return redirect(url_for('login'))
+        #return res.read()
+        return redirect(url_for('signin'))
+    resp = res.read()
+    text = json.loads(resp)
+    login_session['username'] = text["name"]
+    login_session['email'] = text["email"]
+    # see if user exists, if not create user
+    user_id = getUserID(login_session['email'])
+    if not user_id:
+        user_id = createUser(login_session)
+    login_session['user_id'] = user_id
+    print(user_id)
+    flash("you are now logged in as %s" % login_session['username'])
+    return redirect(url_for('users'))
+
+@app.route('/login')
+def login():
+    callback=url_for('authorized', _external=True)
+    return google.authorize(callback=callback)
+
+
+@app.route(REDIRECT_URI)
+@google.authorized_handler
+def authorized(resp):
+    access_token = resp['access_token']
+    login_session['access_token'] = access_token, ''
+    return redirect(url_for('index'))
+
+@google.tokengetter
+def get_access_token():
+    return login_session.get('access_token')
+
+@app.route('/index')
+def signin():
+    return render_template('signin.html')
+
+@app.route('/clear')
+def signoutBlog():
+  if 'access_token' in login_session:
+    del login_session['access_token']
+  return redirect(url_for('signin'))
+
+def is_signed_in():
+  if 'access_token' in login_session:
+    return True
+  else:
+    return False
+
+
 @app.route('/users/JSON')
 def usersJSON():
     # get all users
     users = session.query(User).all()
     return jsonify(Users=[user.serialize for user in users])
 
-# Create anti-forgery state token
-@app.route('/login')
-def showLogin():
-    state = ''.join(random.choice(string.ascii_uppercase + string.digits)
-                    for x in xrange(32))
-    login_session['state'] = state
-    print("The current session state is %s" % login_session['state'])
-    return render_template('login.html', STATE=state)
-
-@app.route('/')
-@app.route('/signin')
-def signinBlog():
-    if google_auth.is_signed_in():
-        return redirect(url_for('users'))
-    else:
-        # state = ''.join(random.choice(string.ascii_uppercase + string.digits)
-        #                 for x in xrange(32))
-        # login_session['state'] = state
-        return render_template('signin.html', signed_in=google_auth.is_signed_in())  
-
-
-@app.route('/signout')
-def signoutBlog():
-    if google_auth.is_signed_in():
-        return redirect(url_for('google_auth.clear_credentials'))
-
 @app.route('/users')
 def users():
     users = session.query(User).all()
-    return render_template('users.html', users = users, signed_in=google_auth.is_signed_in())  
+    return render_template('users.html', users = users, signed_in=is_signed_in())  
 
 @app.route('/user/<int:user_id>/article/<int:article_id>/comments/JSON')
 def commentsJSON(user_id, article_id):
@@ -88,9 +154,13 @@ def articleJSON(user_id, article_id):
 def userArticles(user_id):
     # search for user by ID
     user = session.query(User).filter_by(id = user_id).one()
+    if is_signed_in():
+        is_creator = (user_id == login_session['user_id'])
+    else:
+        is_creator = False
     # get all articles with user ID
     articles = session.query(Article).filter_by(user_id = user_id).all()
-    return render_template('user_articles.html', user = user, articles = articles, signed_in=google_auth.is_signed_in())
+    return render_template('user_articles.html', user = user, articles = articles, signed_in=is_signed_in(), is_creator = is_creator)
 
 @app.route('/user/<int:user_id>/article/<int:article_id>/view', methods=['GET','POST'])
 def viewUserArticle(user_id, article_id):
@@ -104,12 +174,13 @@ def viewUserArticle(user_id, article_id):
         session.commit()
         return redirect(url_for('viewUserArticle', user_id = user.id, article_id = article.id ))
     else:
-        return render_template('view_article.html', user = user, article = article, comments = allComments, num_comments = len(allComments), signed_in=google_auth.is_signed_in())
+        return render_template('view_article.html', user = user, article = article, comments = allComments, num_comments = len(allComments), signed_in=is_signed_in())
 
 @app.route('/user/<int:user_id>/article/new' , methods=['GET','POST'])
 def addArticle(user_id):
-    if google_auth.is_signed_in():
+    if is_signed_in() and (user_id == login_session['user_id']):
         user = session.query(User).filter_by(id = user_id).one()
+        # make sure that only blog owner can add to her blog
         if request.method == 'POST':
             newArticle = Article(title = request.form['title'], article_body =request.form['body'], user_id = user_id)
             session.add(newArticle)
@@ -117,14 +188,14 @@ def addArticle(user_id):
             flash("New Post Added Successfully!")
             return redirect(url_for('userArticles', user_id = user_id))
         else:
-            return render_template('add_article.html', user = user, signed_in=google_auth.is_signed_in())
+            return render_template('add_article.html', user = user, signed_in=is_signed_in())
     else:
         flash("You need to be logged in to add an article")
         return redirect(url_for('userArticles', user_id = user_id))
 
 @app.route('/user/<int:user_id>/article/<int:article_id>/edit' , methods=['GET','POST'])
 def editArticle(user_id, article_id):
-    if google_auth.is_signed_in():
+    if is_signed_in() and (user_id == login_session['user_id']):
         # get article from database
         user = session.query(User).filter_by(id = user_id).one()
         toEditArticle = session.query(Article).filter_by(id = article_id, user_id = user_id).one()
@@ -138,7 +209,7 @@ def editArticle(user_id, article_id):
             flash("Post Successfully Updated !")
             return redirect(url_for('viewUserArticle', user_id = user_id, article_id = article_id))
         else:
-            return render_template('edit_article.html', user = user, article = toEditArticle, signed_in=google_auth.is_signed_in())
+            return render_template('edit_article.html', user = user, article = toEditArticle, signed_in=is_signed_in())
     else:
         flash("You need to be logged in to edit an article")
         return redirect(url_for('userArticles', user_id = user_id))
@@ -146,7 +217,7 @@ def editArticle(user_id, article_id):
 @app.route('/user/<int:user_id>/article/<int:article_id>/delete'  , methods=['GET','POST'])
 def deleteArticle(user_id, article_id):
     # get article
-    if google_auth.is_signed_in():
+    if is_signed_in() and (user_id == login_session['user_id']):
         user = session.query(User).filter_by(id = user_id).one()
         toDeleteArticle = session.query(Article).filter_by(id = article_id, user_id = user_id).one()
         if request.method == 'POST':
@@ -155,10 +226,31 @@ def deleteArticle(user_id, article_id):
             flash("Post Successfully Deleted")
             return redirect(url_for('userArticles', user_id = user_id))
         else:
-            return render_template('delete_article.html', user = user, article = toDeleteArticle, signed_in=google_auth.is_signed_in())
+            return render_template('delete_article.html', user = user, article = toDeleteArticle, signed_in=is_signed_in())
     else:
         flash("You need to be logged in to delete an article")
         return redirect(url_for('userArticles', user_id = user_id))
+
+def createUser(login_session):
+    newUser = User(user_name=login_session['username'], user_email=login_session[
+                   'email'])
+    session.add(newUser)
+    session.commit()
+    user = session.query(User).filter_by(user_email=login_session['email']).one()
+    return user.id
+
+
+def getUserInfo(user_id):
+    user = session.query(User).filter_by(id=user_id).one()
+    return user
+
+
+def getUserID(email):
+    try:
+        user = session.query(User).filter_by(user_email=email).one()
+        return user.id
+    except:
+        return None
 
 if __name__ == '__main__':
     app.secret_key = 'super_secret_blog_keys'

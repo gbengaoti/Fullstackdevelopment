@@ -4,13 +4,8 @@
 </head>
 <body>
 <div class="header">
-    {% if signed_in %}
-        <h1>{{user.user_name}}'s blog </h1>
-        <a href="{{ url_for('signoutBlog')}}">Sign out</a>
-    {% else %}
-        <h1>Blogger's world </h1>
-        <a href="{{ url_for('signinBlog')}}">Sign in</a>
-    {% endif %}
+    <h1>{{user.user_name}}'s blog </h1>
+    <a href="{{ url_for('signoutBlog')}}">Sign out</a>
 </div>
 
 <div class="pane">

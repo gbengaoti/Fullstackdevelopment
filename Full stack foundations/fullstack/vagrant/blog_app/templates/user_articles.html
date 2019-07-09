@@ -5,11 +5,15 @@
 <body>
 <div class="header">
     {% if signed_in %}
-        <h1>{{user.user_name}}'s blog </h1>
-        <a href="{{ url_for('signoutBlog')}}">Sign out</a>
+        <h1>{{user_name}}'s blog </h1>
+        <div class = "gsignin">
+            <a href="{{ url_for('signoutBlog')}}">Sign out</a>
+        </div>
     {% else %}
         <h1>Blogger's world </h1>
-        <a href="{{ url_for('signin')}}">Sign in</a>
+        <div class = "gsignin">
+            <a href="{{ url_for('signin')}}">Sign in</a>
+        </div>
     {% endif %}
 </div>
 

@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker, scoped_session
 from database_setup import User, Base, Article, Comments
 from flask_oauth import OAuth
 import json
+import httplib2
 
 app = Flask(__name__)
 
@@ -30,6 +31,7 @@ def close_session(response):
     session.remove()
     return(response)
 
+#################### GOOGLE SIGN IN ########################################
 GOOGLE_CLIENT_ID = json.loads(
     open('client_secrets.json', 'r').read())['web']['client_id']
 
@@ -42,16 +44,16 @@ REDIRECT_URI = '/oauth2callback'  # one of the Redirect URIs from Google APIs co
 oauth = OAuth()
 
 google = oauth.remote_app('google',
-base_url='https://www.google.com/accounts/',
-authorize_url='https://accounts.google.com/o/oauth2/auth',
-request_token_url=None,
-request_token_params={'scope':  "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/plus.login https://www.googleapis.com/auth/plus.me",
-'response_type': 'code'},
-access_token_url='https://accounts.google.com/o/oauth2/token',
-access_token_method='POST',
-access_token_params={'grant_type': 'authorization_code'},
-consumer_key=GOOGLE_CLIENT_ID,
-consumer_secret=GOOGLE_CLIENT_SECRET)
+    base_url='https://www.google.com/accounts/',
+    authorize_url='https://accounts.google.com/o/oauth2/auth',
+    request_token_url=None,
+    request_token_params={'scope':  "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/plus.login https://www.googleapis.com/auth/plus.me",
+    'response_type': 'code'},
+    access_token_url='https://accounts.google.com/o/oauth2/token',
+    access_token_method='POST',
+    access_token_params={'grant_type': 'authorization_code'},
+    consumer_key=GOOGLE_CLIENT_ID,
+    consumer_secret=GOOGLE_CLIENT_SECRET)
 
 
 @app.route('/')
@@ -78,6 +80,7 @@ def index():
         return redirect(url_for('signin'))
     resp = res.read()
     text = json.loads(resp)
+    login_session['provider'] = 'google'
     login_session['username'] = text["name"]
     login_session['email'] = text["email"]
     # see if user exists, if not create user
@@ -108,13 +111,111 @@ def get_access_token():
 
 @app.route('/index')
 def signin():
-    return render_template('signin.html')
+    state = ''.join(random.choice(string.ascii_uppercase + string.digits)
+                    for x in xrange(32))
+    login_session['state'] = state
+    if is_signed_in():
+        username = login_session['username'] 
+    else:
+        username = "Bloggers world"
+    return render_template('signin.html', STATE=state, signed_in=is_signed_in(), user_name=username)
+
+
+
+#################### FACEBOOK SIGN IN ########################################
+
+@app.route('/fbconnect', methods=['POST'])
+def fbconnect():
+    if request.args.get('state') != login_session['state']:
+        response = make_response(json.dumps('Invalid state parameter.'), 401)
+        response.headers['Content-Type'] = 'application/json'
+        return response
+    access_token = request.data
+
+    # <a href="https://www.facebook.com/dialog/oauth/?client_id=YOUR_APP_ID&redirect_uri=YOUR_REDIRECT_URL&state=YOUR_STATE_VALUE&scope=COMMA_SEPARATED_LIST_OF_PERMISSION_NAMES">LOGIN!</a>
+
+
+    app_id = json.loads(open('fb_client_secrets.json', 'r').read())[
+        'web']['app_id']
+    app_secret = json.loads(
+        open('fb_client_secrets.json', 'r').read())['web']['app_secret']
+    url = 'https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=%s&client_secret=%s&fb_exchange_token=%s' % (
+        app_id, app_secret, access_token)
+    h = httplib2.Http()
+    result = h.request(url, 'GET')[1]
+
+
+    # Use token to get user info from API
+    userinfo_url = "https://graph.facebook.com/v3.3/me"
+    '''
+        Due to the formatting for the result from the server token exchange we have to
+        split the token first on commas and select the first index which gives us the key : value
+        for the server access token then we split it on colons to pull out the actual token value
+        and replace the remaining quotes with nothing so that it can be used directly in the graph
+        api calls
+    '''
+    token = result.split(',')[0].split(':')[1].replace('"', '')
+
+    url = 'https://graph.facebook.com/v3.3/me?access_token=%s&fields=name,id,email' % token
+    h = httplib2.Http()
+    result = h.request(url, 'GET')[1]
+    # print "url sent for API access:%s"% url
+    # print "API JSON result: %s" % result
+    data = json.loads(result)
+    login_session['provider'] = 'facebook'
+    login_session['username'] = data["name"]
+    # error checking for if user has no email address
+    login_session['email'] = data["email"]
+    login_session['facebook_id'] = data["id"]
+    # The token must be stored in the login_session in order to properly logout
+    login_session['access_token'] = token
+
+    # see if user exists, if not create user
+    user_id = getUserID(login_session['email'])
+    if not user_id:
+        user_id = createUser(login_session)
+    login_session['user_id'] = user_id
+    
+    output = ''
+    output += '<h1>Welcome, '
+    output += login_session['username']
+
+    output += '!</h1>'
+    flash("you are now logged in as %s" % login_session['username'])
+    return output
+#################### FACEBOOK SIGN OUT########################################
+
+
+@app.route('/fbdisconnect')
+def fbdisconnect():
+    facebook_id = login_session['facebook_id']
+    # The access token must me included to successfully logout
+    access_token = login_session['access_token']
+    url = 'https://graph.facebook.com/%s/permissions?access_token=%s' % (facebook_id,access_token)
+    h = httplib2.Http()
+    result = h.request(url, 'DELETE')[1]
+
+
+####################  SIGN OUT ###############################################
 
 @app.route('/clear')
 def signoutBlog():
-  if 'access_token' in login_session:
-    del login_session['access_token']
-  return redirect(url_for('signin'))
+    if 'provider' in login_session:
+        if login_session['provider'] == 'google':
+            del login_session['access_token']
+        if login_session['provider'] == 'facebook':
+            fbdisconnect()
+            del login_session['facebook_id']
+            del login_session['access_token']
+        del login_session['username']
+        del login_session['email']
+        del login_session['user_id']
+        del login_session['provider']
+        flash("You have successfully been logged out.")
+        return redirect(url_for('signin'))
+    else:
+        flash("You were not logged in")
+        return redirect(url_for('signin'))  
 
 def is_signed_in():
   if 'access_token' in login_session:
@@ -122,17 +223,7 @@ def is_signed_in():
   else:
     return False
 
-
-@app.route('/users/JSON')
-def usersJSON():
-    # get all users
-    users = session.query(User).all()
-    return jsonify(Users=[user.serialize for user in users])
-
-@app.route('/users')
-def users():
-    users = session.query(User).all()
-    return render_template('users.html', users = users, signed_in=is_signed_in())  
+#################### JSON CRUD OPERATIONS ###################################
 
 @app.route('/user/<int:user_id>/article/<int:article_id>/comments/JSON')
 def commentsJSON(user_id, article_id):
@@ -147,8 +238,26 @@ def articlesJSON(user_id):
 @app.route('/user/<int:user_id>/article/<int:article_id>/JSON')
 def articleJSON(user_id, article_id):
     article = session.query(Article).filter_by(id = article_id, user_id = user_id).one()
-    return jsonify(Article= article.serialize)    
+    return jsonify(Article= article.serialize)   
 
+@app.route('/users/JSON')
+def usersJSON():
+    # get all users
+    users = session.query(User).all()
+    return jsonify(Users=[user.serialize for user in users])
+
+
+
+#################### CRUD OPERATIONS ########################################
+
+@app.route('/users')
+def users():
+    users = session.query(User).all()
+    if not is_signed_in():
+        username = "Bloggers world"
+    else:
+        username = login_session['username']
+    return render_template('users.html', users = users, signed_in=is_signed_in(),user_name=username)  
 
 @app.route('/users/<int:user_id>')
 def userArticles(user_id):
@@ -158,9 +267,14 @@ def userArticles(user_id):
         is_creator = (user_id == login_session['user_id'])
     else:
         is_creator = False
+
+    if not is_signed_in():
+        username = "Bloggers world"
+    else:
+        username = login_session['username']
     # get all articles with user ID
     articles = session.query(Article).filter_by(user_id = user_id).all()
-    return render_template('user_articles.html', user = user, articles = articles, signed_in=is_signed_in(), is_creator = is_creator)
+    return render_template('user_articles.html', user = user, articles = articles, signed_in=is_signed_in(), is_creator = is_creator,user_name=username)
 
 @app.route('/user/<int:user_id>/article/<int:article_id>/view', methods=['GET','POST'])
 def viewUserArticle(user_id, article_id):
@@ -251,6 +365,7 @@ def getUserID(email):
         return user.id
     except:
         return None
+
 
 if __name__ == '__main__':
     app.secret_key = 'super_secret_blog_keys'

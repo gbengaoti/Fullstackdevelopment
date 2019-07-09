@@ -33,13 +33,28 @@ body {
 }
 
 .header a {
+    font-family: sans-serif;
+    text-decoration: none;
+}
+
+.header .gsignin {
+    display: inline-block;
+    left: 65%;
+    margin-left: 5px;
+    padding: 0px;
+    position: absolute;
+    color: #e5474b;
+}
+
+
+.header .fsignin {
     font-family: 'Pacifico', cursive;
     display: inline-block;
     height: inherit;
     left: 80%;
     line-height: inherit;
-    margin: 0;
-    padding-left: 50px;
+    margin: 0px;
+    padding: 6px;
     position: absolute;
     top: 0;
     color: #e5474b;

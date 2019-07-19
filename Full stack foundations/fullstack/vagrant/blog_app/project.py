@@ -272,37 +272,47 @@ def users():
 def userArticles(user_id):
     # search for user by ID
     user = getUserById(user_id)
-    if is_signed_in():
-        is_creator = (user_id == login_session['user_id'])
-    else:
-        is_creator = False
+    if user != None:
+        if is_signed_in():
+            is_creator = (user_id == login_session['user_id'])
+        else:
+            is_creator = False
 
-    if not is_signed_in():
-        username = "Bloggers world"
+        if not is_signed_in():
+            username = "Bloggers world"
+        else:
+            username = login_session['username']
+        # get all articles with user ID
+        articles = session.query(Article).filter_by(user_id = user_id).all()
+        return render_template('user_articles.html', user = user, articles = articles, signed_in=is_signed_in(), is_creator = is_creator,user_name=username)
     else:
-        username = login_session['username']
-    # get all articles with user ID
-    articles = session.query(Article).filter_by(user_id = user_id).all()
-    return render_template('user_articles.html', user = user, articles = articles, signed_in=is_signed_in(), is_creator = is_creator,user_name=username)
+        abort(404)
 
 @app.route('/user/<int:user_id>/article/<int:article_id>/view', methods=['GET','POST'])
 def viewUserArticle(user_id, article_id):
     # search article by user_id and article_id
     user = getUserById(user_id)
-    article =  getArticle(article_id, user_id)
-    allComments = session.query(Comments).filter_by(article_id = article_id, writer_id = user_id).all()
-    if request.method == 'POST':
-        # error handling - no empty comment should be added
-        if request.form['comment'] != "":
-            newComment = Comments(comment_text = request.form['comment'], article = article, user = article)
-            session.add(newComment)
-            session.commit()
-            return redirect(url_for('viewUserArticle', user_id = user.id, article_id = article.id ))
+    if user != None:
+        article =  getArticle(article_id, user_id)
+        # error handling - if article does not exist
+        if article != None:
+            allComments = session.query(Comments).filter_by(article_id = article_id, writer_id = user_id).all()
+            if request.method == 'POST':
+                # error handling - no empty comment should be added
+                if request.form['comment'] != "":
+                    newComment = Comments(comment_text = request.form['comment'], article = article, user = article)
+                    session.add(newComment)
+                    session.commit()
+                    return redirect(url_for('viewUserArticle', user_id = user.id, article_id = article.id ))
+                else:
+                    flash("Comment cannot be empty")
+                    return redirect(url_for('viewUserArticle', user_id = user.id, article_id = article.id ))
+            else:
+                return render_template('view_article.html', user = user, article = article, comments = allComments, num_comments = len(allComments), signed_in=is_signed_in())
         else:
-            flash("Comment cannot be empty")
-            return redirect(url_for('viewUserArticle', user_id = user.id, article_id = article.id ))
+            abort(404)
     else:
-        return render_template('view_article.html', user = user, article = article, comments = allComments, num_comments = len(allComments), signed_in=is_signed_in())
+        abort(404)
 
 @app.route('/user/<int:user_id>/article/new' , methods=['GET','POST'])
 def addArticle(user_id):

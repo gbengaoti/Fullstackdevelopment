@@ -1,3 +1,4 @@
+## This tests assumes user is signed in as User with id - 1 
 import requests, random
 
 base_uri = "http://localhost:5000/"
@@ -60,136 +61,113 @@ def run_test_json(query, status_code, passed_msg):
       print("Couldn't communicate with the server ({})".format(e))
       print("If it's running, take a look at the server's output.")
 
-# test that guest can access the home page
-query = "index"
-status_code = 200
-passed_msg = "Test 1 PASSED - Guest user can access home page"
-run_test(query, status_code, passed_msg)
-
-# test that guest can view all users
+# user can view users
 query = "users"
 status_code = 200
-passed_msg = "Test 2 PASSED - Guest user can access view users"
+passed_msg = "Test 1 PASSED - signed in user can access view users"
 run_test(query, status_code, passed_msg)
 
-# test that guest can view articles for existing user
+# user can view articles for self and others
 query = "users/1"
 status_code = 200
-passed_msg = "Test 3 PASSED - Guest user can access user articles"
+passed_msg = "Test 2 PASSED - signed in user can access view own articles"
 run_test(query, status_code, passed_msg)
 
-# test that guest cannot view articles for non existing user
-query = "users/0"
-status_code = 404
-passed_msg = "Test 4 PASSED - Guest user cannot access user articles for nonexisting user"
+query = "users/2"
+status_code = 200
+passed_msg = "Test 3 PASSED - signed in user can access view other articles"
 run_test(query, status_code, passed_msg)
 
-# test that guest can view article
+# user can view own article
 query = "user/1/article/1/view"
 status_code = 200
-passed_msg = "Test 5 PASSED - Guest user can view user article"
+passed_msg = "Test 4 PASSED - signed in user can access view particular article"
 run_test(query, status_code, passed_msg)
 
-# test that guest cannot view non existing user and existing article
-query = "user/0/article/1/view"
+# user can view other article(non existing)
+query = "user/2/article/1/view"
 status_code = 404
-passed_msg = "Test 6 PASSED - Guest user cannot view user article for nonexisting user"
+passed_msg = "Test 5 PASSED - signed in user cannot access non-existing article"
 run_test(query, status_code, passed_msg)
 
-# test that guest cannot view existing user and non existing article
-query = "user/1/article/0/view"
-status_code = 404
-passed_msg = "Test 7 PASSED - Guest user cannot view nonexisting article for existing user"
-run_test(query, status_code, passed_msg)
-
-# test that guest cannot add article
-query = "user/1/article/new"
+# user can view other article(non existing)
+query = "user/3/article/3/view"
 status_code = 200
-expected_page = "http://localhost:5000/users/1"
-passed_msg = "Test 8 PASSED - Guest user cannot view page to add article"
-run_test_pages(query, expected_page, passed_msg, status_code)
-
-# adding article for invalid user as guest
-query = "user/0/article/new"
-status_code = 404
-passed_msg = "Test 9 PASSED - Guest user cannot view page to add article for invalid user"
+passed_msg = "Test 6 PASSED - signed in user can access view others article"
 run_test(query, status_code, passed_msg)
 
-# test that guest cannot edit article
+# user can edit own article
 query = "user/1/article/1/edit"
 status_code = 200
-expected_page = "http://localhost:5000/users/1"
-passed_msg = "Test 10 PASSED - Guest user cannot view page to edit article"
-run_test_pages(query, expected_page, passed_msg, status_code)
-
-# editing article for invalid user as guest
-query = "user/0/article/1/edit"
-status_code = 404
-passed_msg = "Test 11 PASSED - Guest user cannot view page to edit article for invalid user"
+passed_msg = "Test 7 PASSED - signed in user can access edit own article"
 run_test(query, status_code, passed_msg)
 
-# test that guest cannot delete article
+
+# user cannot edit other user article
+query = "user/3/article/3/edit"
+expected_page = "http://localhost:5000/users/3"
+status_code = 200
+passed_msg = "Test 8 PASSED - signed in user cannot edit others article"
+run_test_pages(query, expected_page, passed_msg, status_code)
+
+# user can add article
+query = "user/1/article/new"
+status_code = 200
+passed_msg = "Test 9 PASSED - signed in user can add new article"
+run_test(query, status_code, passed_msg)
+
+# user cannot add article for another user
+query = "user/2/article/new"
+expected_page = "http://localhost:5000/users/2"
+status_code = 200
+passed_msg = "Test 10 PASSED - signed in user cannot add article for another user"
+run_test_pages(query, expected_page, passed_msg, status_code)
+
+# user can delete own article
 query = "user/1/article/1/delete"
 status_code = 200
-expected_page = "http://localhost:5000/users/1"
-passed_msg = "Test 12 PASSED - Guest user cannot view page to delete article"
-run_test_pages(query, expected_page, passed_msg, status_code)
-
-# deleting article for invalid user as guest
-query = "user/0/article/1/delete"
-status_code = 404
-passed_msg = "Test 13 PASSED - Guest user cannot view page to delete article for invalid user"
+passed_msg = "Test 11 PASSED - signed in user can delete own article"
 run_test(query, status_code, passed_msg)
 
-#### JSON tests #####
-
-# get comments in JSON format for article
-query = "user/1/article/1/comments/JSON"
+# user cannot delete article for another user
+query = "user/3/article/3/delete"
+expected_page = "http://localhost:5000/users/3"
 status_code = 200
-passed_msg = "Test 14 PASSED - Guest user can get comments JSON"
-run_test_json(query, status_code, passed_msg)
-
-# if user enters invalid url
-query = "user/0/article/1/comments/JSON"
-status_code = 200
-passed_msg = "Test 15 PASSED - Guest user can get comments JSON"
-run_test_json(query, status_code, passed_msg)
-
-# if user enters invalid url
-query = "user/1/article/0/comments/JSON"
-status_code = 200
-passed_msg = "Test 16 PASSED - Guest user can get comments JSON"
-run_test_json(query, status_code, passed_msg)
+passed_msg = "Test 12 PASSED - signed in user cannot delete article for another user"
+run_test_pages(query, expected_page, passed_msg, status_code)
 
 
+# user can get JSON files like guest
 # get articles for user
 query = "user/1/articles/JSON"
 status_code = 200
-passed_msg = "Test 17 PASSED - Guest user can get articles JSON"
+passed_msg = "Test 13 PASSED - user can get articles JSON"
 run_test_json(query, status_code, passed_msg)
 
-query = "user/0/articles/JSON"
+query = "user/3/articles/JSON"
 status_code = 200
-passed_msg = "Test 18 PASSED - Guest user can get articles JSON"
+passed_msg = "Test 14 PASSED - user can get other articles JSON"
 run_test_json(query, status_code, passed_msg)
 
 query = "user/1/article/1/JSON"
 status_code = 200
-passed_msg = "Test 19 PASSED - Guest user can get article JSON"
+passed_msg = "Test 15 PASSED - user can get article JSON"
 run_test_json(query, status_code, passed_msg)
 
 
-query = "user/0/article/1/JSON"
+query = "user/3/article/1/JSON"
 status_code = 200
-passed_msg = "Test 20 PASSED - Guest user can get article JSON"
+passed_msg = "Test 16 PASSED - user can get other article(non-existing) JSON"
 run_test_json(query, status_code, passed_msg)
 
 query = "user/1/article/0/JSON"
 status_code = 200
-passed_msg = "Test 21 PASSED - Guest user can get article JSON"
+passed_msg = "Test 17 PASSED - user can get article JSON"
 run_test_json(query, status_code, passed_msg)
 
 query = "users/JSON"
 status_code = 200
-passed_msg = "Test 22 PASSED - Guest user can get users JSON"
+passed_msg = "Test 18 PASSED - user can get users JSON"
 run_test_json(query, status_code, passed_msg)
+
+

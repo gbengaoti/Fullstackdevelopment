@@ -33,7 +33,7 @@ article1 = Article(title = "Summer in Lodz", article_body = "I loved travelling 
 session.add(article1)
 session.commit()
 
-comment1 = Comments(comment_text = "Sounds like a great summer !", article = article1)
+comment1 = Comments(comment_text = "Sounds like a great summer !", article = article1, user = article1)
 
 session.add(comment1)
 session.commit()
@@ -43,7 +43,7 @@ article2 = Article(title = "Missed flights and Christmases", article_body = "Wha
 session.add(article2)
 session.commit()
 
-comment2 = Comments(comment_text = "Hope you got a great Christmas", article = article2)
+comment2 = Comments(comment_text = "Hope you got a great Christmas",  article = article2, user = article2)
 
 session.add(comment2)
 session.commit()

@@ -22,7 +22,6 @@ class User(Base):
         return {
             'name': self.user_name,
             'email':self.user_email,
-            'started_on':self.created_date,
             'id': self.id,
         }
 
@@ -43,7 +42,6 @@ class Article(Base):
         return {
             'title': self.title,
             'article_body':self.article_body,
-            'created_date':self.created_date,
             'user_id':self.user_id,
             'id': self.id,
         }
@@ -53,19 +51,21 @@ class Comments(Base):
     __tablename__ = 'comments'
 
     id = Column(Integer, primary_key=True)
-    comment_text = Column(Text())
+    comment_text = Column(Text(), nullable=False)
     created_date = Column(DateTime, default=datetime.datetime.utcnow)
+    writer_id = Column(Integer, ForeignKey('article.user_id'))
     article_id = Column(Integer, ForeignKey('article.id'))
-    article = relationship(Article)
+    article = relationship("Article", foreign_keys=[article_id])
+    user = relationship("Article", foreign_keys=[writer_id])
 
     @property
     def serialize(self):
         """Return object data in easily serializeable format"""
         return {
             'comment': self.comment_text,
-            'created_date': self.created_date,
             'id': self.id,
-            'article_id': self.article_id
+            'article_id': self.article_id,
+            'writer_id': self.writer_id
         }
 
 

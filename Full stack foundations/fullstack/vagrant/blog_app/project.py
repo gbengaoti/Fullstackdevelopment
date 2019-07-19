@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, jsonify, flash
+from flask import Flask, render_template, request, redirect, url_for, jsonify, flash, abort
 from requests_oauthlib import OAuth2Session
 import google.oauth2.credentials
 import googleapiclient.discovery
@@ -11,6 +11,7 @@ from database_setup import User, Base, Article, Comments
 from flask_oauth import OAuth
 import json
 import httplib2
+from sqlalchemy.orm.exc import NoResultFound
 
 app = Flask(__name__)
 
@@ -227,7 +228,7 @@ def is_signed_in():
 
 @app.route('/user/<int:user_id>/article/<int:article_id>/comments/JSON')
 def commentsJSON(user_id, article_id):
-    allComments = session.query(Comments).filter_by(article_id = article_id).all()
+    allComments = session.query(Comments).filter_by(article_id = article_id, writer_id = user_id).all()
     return jsonify(Comments=[c.serialize for c in allComments])
 
 @app.route('/user/<int:user_id>/articles/JSON')
@@ -237,8 +238,16 @@ def articlesJSON(user_id):
 
 @app.route('/user/<int:user_id>/article/<int:article_id>/JSON')
 def articleJSON(user_id, article_id):
-    article = session.query(Article).filter_by(id = article_id, user_id = user_id).one()
-    return jsonify(Article= article.serialize)   
+    try:
+        article = session.query(Article).filter_by(id = article_id, user_id = user_id).one()  
+    except NoResultFound as e:
+        article = {}
+    finally:
+        if article == {}:
+            return json.dumps(article)
+        else:
+            return jsonify(Article= article.serialize)   
+    
 
 @app.route('/users/JSON')
 def usersJSON():
@@ -262,7 +271,7 @@ def users():
 @app.route('/users/<int:user_id>')
 def userArticles(user_id):
     # search for user by ID
-    user = session.query(User).filter_by(id = user_id).one()
+    user = getUserById(user_id)
     if is_signed_in():
         is_creator = (user_id == login_session['user_id'])
     else:
@@ -279,28 +288,38 @@ def userArticles(user_id):
 @app.route('/user/<int:user_id>/article/<int:article_id>/view', methods=['GET','POST'])
 def viewUserArticle(user_id, article_id):
     # search article by user_id and article_id
-    user = session.query(User).filter_by(id = user_id).one()
-    article = session.query(Article).filter_by(id = article_id, user_id = user_id).one()
-    allComments = session.query(Comments).filter_by(article_id = article_id).all()
+    user = getUserById(user_id)
+    article =  getArticle(article_id, user_id)
+    allComments = session.query(Comments).filter_by(article_id = article_id, writer_id = user_id).all()
     if request.method == 'POST':
-        newComment = Comments(comment_text = request.form['comment'], article_id = article.id )
-        session.add(newComment)
-        session.commit()
-        return redirect(url_for('viewUserArticle', user_id = user.id, article_id = article.id ))
+        # error handling - no empty comment should be added
+        if request.form['comment'] != "":
+            newComment = Comments(comment_text = request.form['comment'], article = article, user = article)
+            session.add(newComment)
+            session.commit()
+            return redirect(url_for('viewUserArticle', user_id = user.id, article_id = article.id ))
+        else:
+            flash("Comment cannot be empty")
+            return redirect(url_for('viewUserArticle', user_id = user.id, article_id = article.id ))
     else:
         return render_template('view_article.html', user = user, article = article, comments = allComments, num_comments = len(allComments), signed_in=is_signed_in())
 
 @app.route('/user/<int:user_id>/article/new' , methods=['GET','POST'])
 def addArticle(user_id):
     if is_signed_in() and (user_id == login_session['user_id']):
-        user = session.query(User).filter_by(id = user_id).one()
+        user = getUserById(user_id)
         # make sure that only blog owner can add to her blog
+        # error handling - no empty articles can be added
         if request.method == 'POST':
-            newArticle = Article(title = request.form['title'], article_body =request.form['body'], user_id = user_id)
-            session.add(newArticle)
-            session.commit()
-            flash("New Post Added Successfully!")
-            return redirect(url_for('userArticles', user_id = user_id))
+            if request.form['title'] == "" and request.form['body'] == "":
+                flash("Cannot Add Empty Post - Try again")
+                return redirect(url_for('userArticles', user_id = user_id))
+            else:
+                newArticle = Article(title = request.form['title'], article_body =request.form['body'], user_id = user_id)
+                session.add(newArticle)
+                session.commit()
+                flash("New Post Added Successfully!")
+                return redirect(url_for('userArticles', user_id = user_id))
         else:
             return render_template('add_article.html', user = user, signed_in=is_signed_in())
     else:
@@ -311,19 +330,23 @@ def addArticle(user_id):
 def editArticle(user_id, article_id):
     if is_signed_in() and (user_id == login_session['user_id']):
         # get article from database
-        user = session.query(User).filter_by(id = user_id).one()
-        toEditArticle = session.query(Article).filter_by(id = article_id, user_id = user_id).one()
-        if request.method == 'POST':
-            if request.form['title']:
-                toEditArticle.title = request.form['title']
-            if request.form['body']:
-                toEditArticle.article_body = request.form['body']
-            session.add(toEditArticle)
-            session.commit()
-            flash("Post Successfully Updated !")
-            return redirect(url_for('viewUserArticle', user_id = user_id, article_id = article_id))
+        user = getUserById(user_id)
+        # error handling - what happens in case of invalid article_id or invalid user_id
+        toEditArticle = getArticle(article_id, user_id)
+        if toEditArticle != None:
+            if request.method == 'POST':
+                if request.form['title']:
+                    toEditArticle.title = request.form['title']
+                if request.form['body']:
+                    toEditArticle.article_body = request.form['body']
+                session.add(toEditArticle)
+                session.commit()
+                flash("Post Successfully Updated !")
+                return redirect(url_for('viewUserArticle', user_id = user_id, article_id = article_id))
+            else:
+                return render_template('edit_article.html', user = user, article = toEditArticle, signed_in=is_signed_in())
         else:
-            return render_template('edit_article.html', user = user, article = toEditArticle, signed_in=is_signed_in())
+            abort(404)
     else:
         flash("You need to be logged in to edit an article")
         return redirect(url_for('userArticles', user_id = user_id))
@@ -332,15 +355,19 @@ def editArticle(user_id, article_id):
 def deleteArticle(user_id, article_id):
     # get article
     if is_signed_in() and (user_id == login_session['user_id']):
-        user = session.query(User).filter_by(id = user_id).one()
-        toDeleteArticle = session.query(Article).filter_by(id = article_id, user_id = user_id).one()
-        if request.method == 'POST':
-            session.delete(toDeleteArticle)
-            session.commit()
-            flash("Post Successfully Deleted")
-            return redirect(url_for('userArticles', user_id = user_id))
+        user = getUserById(user_id)
+        # error handling - what happens in case of invalid article_id or invalid user_id
+        toDeleteArticle = getArticle(article_id, user_id)
+        if toDeleteArticle != None:
+            if request.method == 'POST':
+                session.delete(toDeleteArticle)
+                session.commit()
+                flash("Post Successfully Deleted")
+                return redirect(url_for('userArticles', user_id = user_id))
+            else:
+                return render_template('delete_article.html', user = user, article = toDeleteArticle, signed_in=is_signed_in())
         else:
-            return render_template('delete_article.html', user = user, article = toDeleteArticle, signed_in=is_signed_in())
+            abort(404)
     else:
         flash("You need to be logged in to delete an article")
         return redirect(url_for('userArticles', user_id = user_id))
@@ -350,14 +377,29 @@ def createUser(login_session):
                    'email'])
     session.add(newUser)
     session.commit()
-    user = session.query(User).filter_by(user_email=login_session['email']).one()
+    user = getUserByEmail(login_session['email'])
     return user.id
 
+def getArticle(article_id, user_id):
+    try:
+        article = session.query(Article).filter_by(id = article_id, user_id = user_id).one()
+        return article
+    except NoResultFound as e:
+        return None
 
-def getUserInfo(user_id):
-    user = session.query(User).filter_by(id=user_id).one()
-    return user
-
+def getUserById(user_id):
+    try:
+        user = session.query(User).filter_by(id=user_id).one()
+        return user
+    except NoResultFound as e:
+        return None
+    
+def getUserByEmail(email):
+    try:
+        user = session.query(User).filter_by(user_email=email).one()
+        return user
+    except NoResultFound as e:
+        return None
 
 def getUserID(email):
     try:
